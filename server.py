@@ -4,6 +4,10 @@ This deliberately does not implement the assignment's core functionality.
 Run: python server.py
 """
 
+from dotenv import load_dotenv
+load_dotenv() # <--- This must run before os.environ.get()
+
+
 import os
 import sqlite3
 import uuid
