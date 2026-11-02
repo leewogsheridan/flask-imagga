@@ -39,21 +39,24 @@ app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 def initialize_database():
     """TODO: Create images and tags tables if they do not exist."""
     create_table = """
+                
                 CREATE TABLE IF NOT EXISTS images (
-                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                    filename      TEXT    NOT NULL UNIQUE,
-                    original_name TEXT,
-                    path          TEXT    NOT NULL,
-                    upload_time   TEXT    NOT NULL
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp  TEXT    NOT NULL,
+                    filename   TEXT    UNIQUE NOT NULL
                 );
-            
+
+                
                 CREATE TABLE IF NOT EXISTS tags (
                     id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                    image_id   INTEGER NOT NULL,
+                    imageId    INTEGER NOT NULL,
                     tag        TEXT    NOT NULL,
                     confidence REAL    NOT NULL,
-                    FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
+                    FOREIGN KEY (imageId) REFERENCES images(id) ON DELETE CASCADE,
+                    UNIQUE(imageId, tag) -- Ensures the same normalized tag cannot appear twice for the same image
                 );
+            
+
             
                 CREATE INDEX IF NOT EXISTS idx_images_upload_time ON images(upload_time);
                 CREATE INDEX IF NOT EXISTS idx_tags_image_id ON tags(image_id);
@@ -105,13 +108,15 @@ def get_image_tags(file_path):
             tags_data = []
             
             raw_tags = data.get("result", {}).get("tags", [])
+            
             for item in raw_tags:
                 tag_name = item.get("tag", {}).get("en")
                 confidence = item.get("confidence")
                 
                 if tag_name and confidence is not None:
+                    normalized_tag = tag_name.strip().lower()
                     tags_data.append({
-                        "tag": tag_name,
+                        "tag": normalized_tag,
                         "confidence": float(confidence)
                     })
                     
@@ -177,7 +182,7 @@ def upload_image():
             #insert image record
             cursor.execute(
                 """
-                INSERT INTO images (filename, original_name, path, upload_time)
+                INSERT OR INGORE INTO images (filename, original_name, path, upload_time)
                 VALUES (?, ?, ?, ?)
                 """,
                 (unique_filename, original_name, file_path, upload_time)
@@ -188,7 +193,7 @@ def upload_image():
             for item in tags_data or []:
                 cursor.execute(
                     """
-                    INSERT INTO tags (image_id, tag, confidence)
+                    INSERT OR IGNORE INTO tags (image_id, tag, confidence)
                     VALUES (?, ?, ?)
                     """,
                     (image_id, item['tag'], item['confidence'])
