@@ -10,7 +10,7 @@ import uuid
 import datetime
 from datetime import timezone, datetime
 from pathlib import Path
-
+import requests
 from flask import Flask, jsonify, request, send_from_directory
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -21,7 +21,9 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
 
-
+IMAGGA_API_KEY = os.environ.get("IMAGGA_API_KEY")
+IMAGGA_API_SECRET = os.environ.get("IMAGGA_API_SECRET")
+USE_MOCK_TAGS = os.environ.get("USE_MOCK_TAGS", "false").lower() == "true"
 
 
 
@@ -75,12 +77,50 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def get_image_tags(file_path):
-    return [
-        {"tag": "sample", "confidence": 99.5},
-        {"tag": "image", "confidence": 95.0},
-        {"tag": "upload", "confidence": 88.2}
-    ]
+    if USE_MOCK_TAGS:
+        return [
+            {"tag": "sample", "confidence": 99.5},
+            {"tag": "image", "confidence": 95.0},
+            {"tag": "upload", "confidence": 88.2}
+        ]
+    url = "https://api.imagga.com/v2/tags"
+    if not IMAGGA_API_KEY or not IMAGGA_API_SECRET:
+        print("Error: IMAGGA_API_KEY and IMAGGA_API_SECRET environment variables are not set.")
+        return []
+    
+    try:
+        with open(file_path, "rb") as image_file:
+            response = requests.post(
+                url,
+                auth=(IMAGGA_API_KEY, IMAGGA_API_SECRET),
+                files={"image": image_file}
+            )
+            
+        if response.status_code == 200:
+            data = response.json()
+            tags_data = []
+            
+            raw_tags = data.get("result", {}).get("tags", [])
+            for item in raw_tags:
+                tag_name = item.get("tag", {}).get("en")
+                confidence = item.get("confidence")
+                
+                if tag_name and confidence is not None:
+                    tags_data.append({
+                        "tag": tag_name,
+                        "confidence": float(confidence)
+                    })
+                    
+            return tags_data
+        else:
+            print(f"Imagga API error ({response.status_code}): {response.text}")
+            return []
+            
+    except Exception as e:
+        print(f"Failed to connect to Imagga API: {str(e)}")
+        return []
 
+"""API REST Functions"""
 @app.post("/api/image")
 def upload_image():
     # TODO: Validate multipart field named 'image', file type, file content,
@@ -117,6 +157,7 @@ def upload_image():
 
         #save new file name
         file.save(file_path)
+
 
         #get the img tags from api imagga using get_image_tags() fn
         tags_data = get_image_tags(file_path)
