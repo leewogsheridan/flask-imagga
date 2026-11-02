@@ -199,9 +199,9 @@ def upload_image():
             return jsonify({
                 "image": {
                     "id": image_id,
-                    "original_name": original_name,
+                    "originalName": original_name,
                     "filename": unique_filename,
-                    "upload_time": upload_time,
+                    "timestamp": upload_time,
                     "tags": tags_data
                 }
             }), 201
@@ -247,8 +247,8 @@ def get_tags():
                 """
                 SELECT DISTINCT t.tag
                 FROM tags t
-                JOIN images i ON t.image_id = i.id
-                WHERE i.upload_time >= ? AND i.upload_time < ?
+                JOIN images i ON t.imageId = i.id
+                WHERE i.timestamp >= ? AND i.timestamp < ?
                 ORDER BY t.tag ASC
                 """,
                 (from_str, to_str)
@@ -305,10 +305,10 @@ def person_detected():
                 """
                 SELECT 1
                 FROM tags t
-                JOIN images i ON t.image_id = i.id
-                WHERE i.upload_time >= ? 
-                  AND i.upload_time < ?
-                  AND LOWER(t.tag) IN ('person', 'human')
+                JOIN images i ON t.imageId = i.id
+                WHERE i.timestamp >= ? 
+                  AND i.timestamp < ?
+                  AND LOWER(t.tag) IN ('person', 'human', 'people', 'man', 'woman')
                   AND t.confidence >= 40.0
                 LIMIT 1
                 """,
@@ -342,7 +342,7 @@ def popular_tags():
             #select tags, gets count by distinct image id, sorts count by desc (so highest is at the top), tags by alph order
             cursor.execute(
                 """
-                SELECT tag, COUNT(DISTINCT image_id) AS count
+                SELECT tag, COUNT(DISTINCT imageId) AS count
                 FROM tags
                 GROUP BY tag
                 ORDER BY count DESC, tag ASC
