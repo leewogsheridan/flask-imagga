@@ -55,12 +55,6 @@ def initialize_database():
                     FOREIGN KEY (imageId) REFERENCES images(id) ON DELETE CASCADE,
                     UNIQUE(imageId, tag) -- Ensures the same normalized tag cannot appear twice for the same image
                 );
-            
-
-            
-                CREATE INDEX IF NOT EXISTS idx_images_upload_time ON images(upload_time);
-                CREATE INDEX IF NOT EXISTS idx_tags_image_id ON tags(image_id);
-                CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags(tag);
             """
     try:
         with db_connect() as conn:
@@ -182,10 +176,10 @@ def upload_image():
             #insert image record
             cursor.execute(
                 """
-                INSERT OR INGORE INTO images (filename, original_name, path, upload_time)
-                VALUES (?, ?, ?, ?)
+                INSERT OR IGNORE INTO images (timestamp, filename)
+                VALUES (?, ?)
                 """,
-                (unique_filename, original_name, file_path, upload_time)
+                (upload_time, unique_filename)
             )
             image_id = cursor.lastrowid
             
@@ -193,7 +187,7 @@ def upload_image():
             for item in tags_data or []:
                 cursor.execute(
                     """
-                    INSERT OR IGNORE INTO tags (image_id, tag, confidence)
+                    INSERT OR IGNORE INTO tags (imageId, tag, confidence)
                     VALUES (?, ?, ?)
                     """,
                     (image_id, item['tag'], item['confidence'])
