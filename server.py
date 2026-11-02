@@ -220,15 +220,26 @@ def get_tags():
     #parse from and to in the arguments from the url
     from_str = request.args.get('from')
     to_str = request.args.get('to')
+    cleaned_from = from_str.replace('Z', '+00:00') if from_str else ''
+    cleaned_to = to_str.replace('Z', '+00:00') if to_str else ''
+
+
     
     #check if both to and from are in the request, otherwise return error 400
-    if not from_str or not to_str:
-        return jsonify({"error": "Both 'from' and 'to' query parameters are required"}), 400
-
     try:
-        #parse and validate ISO timestamps to datetimes. if date is not in iso, give error
-        from_dt = datetime.fromisoformat(from_str)
-        to_dt = datetime.fromisoformat(to_str)
+        # Standardize 'Z' to '+00:00' for safe parsing
+        cleaned_from = from_str.replace('Z', '+00:00') if from_str else ''
+        cleaned_to = to_str.replace('Z', '+00:00') if to_str else ''
+        
+        from_dt = datetime.fromisoformat(cleaned_from)
+        to_dt = datetime.fromisoformat(cleaned_to)
+        
+        # If one is naive and the other aware, make both naive (or both aware)
+        if from_dt.tzinfo is not None and to_dt.tzinfo is None:
+            to_dt = to_dt.replace(tzinfo=timezone.utc)
+        elif from_dt.tzinfo is None and to_dt.tzinfo is not None:
+            from_dt = from_dt.replace(tzinfo=timezone.utc)
+            
     except ValueError:
         return jsonify({"error": "Invalid timestamp format. Use ISO 8601 (e.g., 2026-10-01T10:00:00Z)"}), 400
 
@@ -278,15 +289,28 @@ def person_detected():
     #parse from and to in the arguments from the url
     from_str = request.args.get('from')
     to_str = request.args.get('to')
+    cleaned_from = from_str.replace('Z', '+00:00') if from_str else ''
+    cleaned_to = to_str.replace('Z', '+00:00') if to_str else ''
+    
     
     #check if both to and from are in the request, otherwise return error 400
     if not from_str or not to_str:
         return jsonify({"error": "Both 'from' and 'to' query parameters are required"}), 400
 
     try:
-        #parse and validate ISO timestamps to datetimes. if date is not in iso, give error
-        from_dt = datetime.fromisoformat(from_str)
-        to_dt = datetime.fromisoformat(to_str)
+        # Standardize 'Z' to '+00:00' for safe parsing
+        cleaned_from = from_str.replace('Z', '+00:00') if from_str else ''
+        cleaned_to = to_str.replace('Z', '+00:00') if to_str else ''
+        
+        from_dt = datetime.fromisoformat(cleaned_from)
+        to_dt = datetime.fromisoformat(cleaned_to)
+        
+        # If one is naive and the other aware, make both naive (or both aware)
+        if from_dt.tzinfo is not None and to_dt.tzinfo is None:
+            to_dt = to_dt.replace(tzinfo=timezone.utc)
+        elif from_dt.tzinfo is None and to_dt.tzinfo is not None:
+            from_dt = from_dt.replace(tzinfo=timezone.utc)
+            
     except ValueError:
         return jsonify({"error": "Invalid timestamp format. Use ISO 8601 (e.g., 2026-10-01T10:00:00Z)"}), 400
 
